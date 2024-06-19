@@ -16,13 +16,74 @@ def write_json(df, path):
     df.to_json(path)
 
 
-def predict(model, original_data):
+def all_predict_map(pkl_path, json_path):
     """
+    contenu du json : dictionnaire {preparation_function, model}
 
-    :param model_path: modele (a importer avec pickle en dehors avant la fonction)
-    :param dataframe: dataframe non traité, dataframe pandas
-    :return: dataframe avec une colonne en plus, la prediction
+
+    :param pkl_path: model and parameters
+    :param json_path: dataset in json
+    :return:
     """
+    import pickle
+    import pandas as pd
+    # loading pkl file
+    with open(pkl_path, 'rb') as f:
+        pkl_dict = pickle.load(f)
+
+    prep_data_dict = pkl_dict["prep_data_dict"]
+    model = pkl_dict["model"]
+
+    # now we import the data
+    data = import_json(json_path)
+    original_data = data.copy(deep=True)
+
+
+
+
+    # now we prepare the data
+
+    categorical_data_cols = ['clc_quartier', 'clc_secteur', 'fk_stadedev', 'fk_port', 'fk_pied', 'fk_situation', 'fk_nomtech', 'villeca', 'feuillage']
+    boolean_cols = ['fk_revetement', 'remarquable']
+
+
+    from sklearn.preprocessing import OneHotEncoder
+
+    # encode categorical data
+    print(prep_data_dict["encoders"].keys())
+    for col, ohe in prep_data_dict["encoders"].items():
+        print(type(ohe))
+        print(col)
+        ohetransform = ohe.transform(data[[col]])
+        data = data.join(ohetransform)
+
+    data.drop(prep_data_dict["encoders"].keys(), axis=1, inplace=True)
+
+    #encode boolean data
+    for col in boolean_cols:
+        new_col = []
+        for cell in data[col]:
+            new_col.append(1 if cell == "Oui" else 0)
+        data[col] = new_col
+
+
+
+
+    # now the predictions
+    X = data[prep_data_dict["top_features"]]
+    predictions = model.predict(X)
+
+    original_data["storm_predictions"] = predictions
+    y_proba = model.predict_proba(X)
+    original_data['Probability_False'] = y_proba[:, 0]
+    original_data['Probability_True'] = y_proba[:, 1]
+    return original_data
+
+
+
+
+"""def predict(model, original_data):
+
     from sklearn import preprocessing
     import copy
 
@@ -59,7 +120,7 @@ def predict(model, original_data):
     original_data['Probability_False'] = y_proba[:, 0]
     original_data['Probability_True'] = y_proba[:, 1]
     return original_data
-
+"""
 
 
 
@@ -112,7 +173,7 @@ def make_storm_map(df3, out_path, gradient_colors = True):
 if __name__ == '__main__':
     print("Hello !")
     #make_map("csv_correction.json")
-    import pickle
+    """import pickle
     # loading pkl
     with open('mlp_model_1.pkl', 'rb') as f:
         model = pickle.load(f)
@@ -120,8 +181,8 @@ if __name__ == '__main__':
     data = pd.read_csv('csv_correction.csv')
 
 
-    res_df = predict(model, data) # returns dataframe avec predictions
+    res_df = predict(model, data) # returns dataframe avec predictions"""
 
-    make_storm_map(res_df, "storm_map.html")
+    make_storm_map(all_predict_map("rf_model_1.pkl", "csv_correction.json"), "storm_map_2.html")
     #write_json(res_df, "res_df.json")
     print(f'finished !')
