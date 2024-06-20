@@ -1,3 +1,4 @@
+import sys
 import folium
 from folium.plugins import MarkerCluster
 import pandas as pd
@@ -73,8 +74,8 @@ def all_predict(pkl_path, json_path):
 
     original_data["storm_predictions"] = predictions
     y_proba = model.predict_proba(X)
-    original_data['Probability_False'] = y_proba[:, 0]
-    original_data['Probability_True'] = y_proba[:, 1]
+    original_data['Probability_Essouche'] = y_proba[:, 0]
+    original_data['Probability_Non_essouche'] = y_proba[:, 1]
     return original_data
 
 
@@ -133,7 +134,7 @@ def add_essouche_bool_column(data, date:str=None, fake_wind_speed = None):
     Retourne le dataframe data (apres predict) en lui ajoutant une colonne booléenne indiquant s'il faut marquer l'arbre comme
     en danger en fonction des données meteo fournies.
 
-    appliquer un coef entre le Probability_True et la vitesse windgust
+    appliquer un coef entre le Probability_Non_essouche et la vitesse windgust
     :param data:
     :param date:
     :return:
@@ -144,7 +145,7 @@ def add_essouche_bool_column(data, date:str=None, fake_wind_speed = None):
     print(wind_gust_speed)
 
     # paliers echelle de Beaufort :
-    # < 60km/h rien
+    # < 61km/h rien
     # 62 a 74       --> aficher >0.9
     # 75 a 88       --> afficher >0.8
     # 89 a 102      --> afficher >0.7 arbres parfois déracinés
@@ -165,14 +166,14 @@ def add_essouche_bool_column(data, date:str=None, fake_wind_speed = None):
     is_displayed = []  # array of bool
     #print(f'TRESHOLD : {treshold}')
     for i in range(len(data)):
-        #print(f'PTrue : {data.iloc[i]["Probability_True"]:.2f} ; T : {treshold}')
-        #print(data.iloc[i]['Probability_True'] > treshold)
-        is_displayed.append(True) if (data.iloc[i]['Probability_True'] > treshold) else is_displayed.append(False)
+        #print(f'PTrue : {data.iloc[i]["Probability_Non_essouche"]:.2f} ; T : {treshold}')
+        #print(data.iloc[i]['Probability_Non_essouche'] > treshold)
+        is_displayed.append(True) if (data.iloc[i]['Probability_Essouche'] > treshold) else is_displayed.append(False)
 
     #print(data.shape)
     #print(len(is_displayed))
     data["is_displayed"] = is_displayed
-    # va devoir afficher les arbres dont Probability_True est superieur a treshold
+    # va devoir afficher les arbres dont Probability_Non_essouche est superieur a treshold
     #print(data['is_displayed'].value_counts())
     return data
 
@@ -181,7 +182,7 @@ def make_storm_map(df3, out_path, gradient_colors = True, weather:bool = True, d
         df3 = add_essouche_bool_column(df3, date, fake_wind_speed=fake_wind_speed)
     #print(df3['is_displayed'].value_counts())
     #print(df3.head())
-    my_map = folium.Map(location=[49.844535, 3.290589], zoom_start=13)
+    my_map = folium.Map(location=[49.844535, 3.290589], zoom_start=13) # coordonnees de Saint Quentin
     colormap = cm.LinearColormap(colors=['green', 'red'], vmin=0, vmax=1)
 
     for i in range(len(df3)):
@@ -191,14 +192,14 @@ def make_storm_map(df3, out_path, gradient_colors = True, weather:bool = True, d
                 location=[df3.iloc[i]['latitude'], df3.iloc[i]['longitude']],
                 radius=df3.iloc[i]['tronc_diam'] / 62.8,
                 fill=True,
-                color=colormap(df3.iloc[i]['Probability_True']) if gradient_colors else colormap(df3.iloc[i]['storm_predictions']),
+                color=colormap(df3.iloc[i]['Probability_Essouche']) if gradient_colors else colormap(df3.iloc[i]['storm_predictions']),
                 fill_opacity=0.2,
-                popup=f'<div style="width:150px">Hauteur totale : {df3.iloc[i]["haut_tot"]}m<br>'
+                popup=f'<div style="width:200px">Hauteur totale : {df3.iloc[i]["haut_tot"]}m<br>'
                       f'Hauteur tronc : {df3.iloc[i]["haut_tronc"]}m<br>'
                       f'Diamètre tronc : {df3.iloc[i]["tronc_diam"] / 3.14159:.2f} cm<br>'
                       f'Age estimé : {df3.iloc[i]["age_estim"]} ans<br>'
-                      f'Proba False : {df3.iloc[i]["Probability_False"]:.8f}<br>'
-                      f'Proba True : {df3.iloc[i]["Probability_True"]:.8f}</div>'
+                      f'Proba Essouché : {df3.iloc[i]["Probability_Essouche"]:.8f}<br>'
+                      f'Proba Non essouché : {df3.iloc[i]["Probability_Non_essouche"]:.8f}</div>'
             ).add_to(my_map)
 
         if not weather:
@@ -206,15 +207,15 @@ def make_storm_map(df3, out_path, gradient_colors = True, weather:bool = True, d
                 location=[df3.iloc[i]['latitude'], df3.iloc[i]['longitude']],
                 radius=df3.iloc[i]['tronc_diam'] / 62.8,
                 fill=True,
-                color=colormap(df3.iloc[i]['Probability_True']) if gradient_colors else colormap(
+                color=colormap(df3.iloc[i]['Probability_Non_essouche']) if gradient_colors else colormap(
                     df3.iloc[i]['storm_predictions']),
                 fill_opacity=0.2,
-                popup=f'<div style="width:150px">Hauteur totale : {df3.iloc[i]["haut_tot"]}m<br>'
+                popup=f'<div style="width:200px">Hauteur totale : {df3.iloc[i]["haut_tot"]}m<br>'
                       f'Hauteur tronc : {df3.iloc[i]["haut_tronc"]}m<br>'
                       f'Diamètre tronc : {df3.iloc[i]["tronc_diam"] / 3.14159:.2f} cm<br>'
                       f'Age estimé : {df3.iloc[i]["age_estim"]} ans<br>'
-                      f'Proba False : {df3.iloc[i]["Probability_False"]:.8f}<br>'
-                      f'Proba True : {df3.iloc[i]["Probability_True"]:.8f}</div>'
+                      f'Proba Essouché : {df3.iloc[i]["Probability_Essouche"]:.8f}<br>'
+                      f'Proba Non essouché : {df3.iloc[i]["Probability_Non_essouche"]:.8f}</div>'
             ).add_to(my_map)
         # TODO : a refactor
     my_map.add_child(colormap)
@@ -223,6 +224,10 @@ def make_storm_map(df3, out_path, gradient_colors = True, weather:bool = True, d
 
 if __name__ == '__main__':
     print("Hello !")
+    model_pkl_path = sys.argv[1]
+    dataset_json_path = sys.argv[2]
+    date = sys.argv[3]
+    out_html_path = sys.argv[4]
     #make_map("csv_correction.json")
     """import pickle
     # loading pkl
@@ -235,8 +240,7 @@ if __name__ == '__main__':
     res_df = predict(model, data) # returns dataframe avec predictions"""
 
 
-
-    make_storm_map(all_predict("rf_model_1.pkl", "csv_correction.json"), "storm_map_3.html", date="2010-02-28")
+    make_storm_map(all_predict(model_pkl_path, dataset_json_path), out_html_path, date=date)
 
 
 
