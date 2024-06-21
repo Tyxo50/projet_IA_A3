@@ -1,6 +1,7 @@
 import pandas as pd
 import json
 import pickle
+import numpy
 from sklearn.metrics import r2_score
 
 def age_estim(data_json, dico):
