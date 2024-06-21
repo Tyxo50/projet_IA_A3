@@ -6,6 +6,12 @@ import branca.colormap as cm
 
 
 def convert_csv_to_json(out_path, csv_path="csv_correction.csv"):
+    """
+    used to convert a csv dataframe into a json file
+    :param out_path:
+    :param csv_path:
+    :return:
+    """
     write_json(pd.read_csv(csv_path), out_path)
 
 
@@ -19,7 +25,6 @@ def write_json(df, path):
 
 def all_predict(pkl_path, json_path):
     """
-    
     retourne le dataframe avec les predictions de chaque ligne
     contenu du json : dictionnaire {preparation_function, model}
 
@@ -82,7 +87,10 @@ def all_predict(pkl_path, json_path):
 
 def get_wind_saint_quentin(d:str= None):
     """
-    Renvoie les vitesses de vent pour Saint Quentin pour la date passee en argument.
+    Renvoie les vitesses de vent pour Saint Quentin pour la date passee en argument, en passant par l'API de visualcrossing.
+    ressources utilisee :
+    https://www.visualcrossing.com/weather/weather-data-services
+
     :param data: date au format yyyy-mm-dd, par defaut aujourd hui
     :d: date format yyyy-mm-dd
     :return: dict, keys : "date" la date, "gust" la vitesse des rafales, "mean" la vitesse moyenne
@@ -134,7 +142,9 @@ def add_essouche_bool_column(data, date:str=None, fake_wind_speed = None):
     Retourne le dataframe data (apres predict) en lui ajoutant une colonne booléenne indiquant s'il faut marquer l'arbre comme
     en danger en fonction des données meteo fournies.
 
-    appliquer un coef entre le Probability_Non_essouche et la vitesse windgust
+    ressources utilisees :
+    https://fr.wikipedia.org/wiki/%C3%89chelle_de_Beaufort
+
     :param data:
     :param date:
     :return:
@@ -178,6 +188,22 @@ def add_essouche_bool_column(data, date:str=None, fake_wind_speed = None):
     return data
 
 def make_storm_map(df3, out_path, gradient_colors = True, weather:bool = True, date:str = None, fake_wind_speed = None):
+    """
+    Cree la carte de la prediction, en prenant en compte les donnees meteo si besoin
+
+    ressources utilisees :
+    https://medium.com/@kusohhan/mapping-data-using-folium-5f00cfb6b2cf
+    https://python-visualization.github.io/folium/latest/user_guide.html
+    https://medium.com/datasciencearth/map-visualization-with-folium-d1403771717
+
+    :param df3: le dataframe avec les predictions, les probas et le is_displayed
+    :param out_path: chemin d'export de la carte au format html
+    :param gradient_colors:
+    :param weather: si on doit prendre en compte la infos meteo et pas simplement les probas du predict
+    :param date: la date a utiliser pour avoir les donnees meteo
+    :param fake_wind_speed: pour lui imposer une vitesse de vent (pour les tests et demos)
+    :return:
+    """
     if weather:
         df3 = add_essouche_bool_column(df3, date, fake_wind_speed=fake_wind_speed)
     #print(df3['is_displayed'].value_counts())
@@ -226,7 +252,7 @@ if __name__ == '__main__':
     print("Hello !")
     model_pkl_path = sys.argv[1]
     dataset_json_path = sys.argv[2]
-    date = sys.argv[3]
+    date = sys.argv[3] if sys.argv[3] != "" else None
     out_html_path = sys.argv[4]
     #make_map("csv_correction.json")
     """import pickle

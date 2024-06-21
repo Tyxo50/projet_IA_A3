@@ -24,12 +24,12 @@ def age_estim(data_json, dico):
     
     return age_estimated_json
 
-with open("Besoin_Client_2/cornichon.pkl", "rb") as f:
+with open("cornichon.pkl", "rb") as f:
     dico = pickle.load(f)
     print(dico.keys())
 
 # Load the JSON data
-with open("Besoin_Client_2/data_test.json", "r") as f:
+with open("data_test.json", "r") as f:
     data_json = f.read()
 
 # Call the function
